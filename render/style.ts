@@ -205,7 +205,7 @@ export function renderStyle(cardState: CardState, shadowRoot: ShadowRoot): void 
       border-bottom: 16px solid var(--radar-aircraft-color);
     }
     .plane.selected {
-      z-index: 3;
+      z-index: 31;
       --selected-scale: 1.2;
     }
     .plane.selected .arrow {
@@ -236,6 +236,74 @@ export function renderStyle(cardState: CardState, shadowRoot: ShadowRoot): void 
       font-size: 9px;
       color: var(--primary-text-color);
       z-index: 2;
+    }
+    .callsign-label.selected-flight-label {
+      opacity: 0.25;
+    }
+    .flight-radar-popup {
+      position: absolute;
+      width: min(190px, calc(100% - 16px));
+      box-sizing: border-box;
+      padding: 9px 11px;
+      background: rgba(15, 18, 22, 0.94);
+      border: 1px solid rgba(255, 255, 255, 0.34);
+      border-radius: 7px;
+      color: #ffffff;
+      font-size: 11px;
+      line-height: 1.35;
+      z-index: 30;
+      pointer-events: none;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+    .flight-radar-popup::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.72);
+    }
+    .flight-radar-popup.popup-right::before {
+      left: -15px;
+    }
+    .flight-radar-popup.popup-left::before {
+      right: -15px;
+    }
+    .flight-popup-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 1px;
+    }
+    .flight-popup-airline {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.72);
+      margin-bottom: 4px;
+    }
+    .flight-popup-model {
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.96);
+    }
+    .flight-popup-row {
+      color: rgba(255, 255, 255, 0.86);
+    }
+    .flight-popup-route {
+      margin-top: 4px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .flight-popup-squawk {
+      margin-top: 4px;
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.68);
+    }
+    .flight-popup-squawk.emergency {
+      color: #ff4d4f;
+      font-weight: 800;
+    }
+    .flight-radar-popup-emergency {
+      border-color: rgba(255, 77, 79, 0.9);
+      box-shadow: 0 0 0 1px rgba(255, 77, 79, 0.18) inset;
     }
     .ring {
       position: absolute;
