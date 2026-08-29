@@ -192,6 +192,90 @@ function createCustomMarker(entry: AircraftMarkerEntry, heading: number): HTMLDi
     return wrapper;
 }
 
+function textValue(value: unknown): string {
+    if (value === undefined || value === null) return '';
+    const text = String(value).trim();
+    return text === 'undefined' || text === 'null' ? '' : text;
+}
+
+function formatAltitude(cardState: CardState, flight: Flight): string {
+    if (!Number.isFinite(flight.altitude) || flight.altitude <= 0) return '';
+    if (flight.altitude >= 17750) return `FL${Math.round(flight.altitude / 1000) * 10}`;
+    if (cardState.units.altitude === 'm') return `${Math.round(flight.altitude * 0.3048).toLocaleString()} m`;
+    return `${Math.round(flight.altitude).toLocaleString()} ft`;
+}
+
+function formatSpeed(cardState: CardState, flight: Flight): string {
+    if (!Number.isFinite(flight.ground_speed) || flight.ground_speed <= 0) return '';
+    if (cardState.units.speed === 'kmh') return `${Math.round(flight.ground_speed * 1.852).toLocaleString()} km/h`;
+    if (cardState.units.speed === 'mph') return `${Math.round(flight.ground_speed * 1.15078).toLocaleString()} mph`;
+    return `${Math.round(flight.ground_speed).toLocaleString()} kts`;
+}
+
+function appendPopupLine(popup: HTMLElement, className: string, text: string): void {
+    if (!text) return;
+    const line = document.createElement('div');
+    line.className = className;
+    line.textContent = text;
+    popup.appendChild(line);
+}
+
+function createFlightPopup(cardState: CardState, flight: Flight): HTMLDivElement {
+    const popup = document.createElement('div');
+    popup.className = 'flight-radar-popup';
+    popup.setAttribute('role', 'status');
+    popup.dataset.flightId = flight.id;
+
+    const callsign = textValue(flight.callsign) || textValue(flight.flight_number) || textValue(flight.aircraft_registration) || 'Unknown flight';
+    const airline = textValue(flight.airline_short) || textValue(flight.airline);
+    const model = textValue(flight.aircraft_model);
+    const aircraftDetails = [textValue(flight.aircraft_code), textValue(flight.aircraft_registration)].filter(Boolean).join(' • ');
+    const performance = [formatAltitude(cardState, flight), formatSpeed(cardState, flight)].filter(Boolean).join(' • ');
+    const route = [textValue(flight.airport_origin_code_iata), textValue(flight.airport_destination_code_iata)].filter(Boolean).join(' → ');
+    const squawk = textValue(flight.squawk);
+
+    appendPopupLine(popup, 'flight-popup-title', callsign);
+    appendPopupLine(popup, 'flight-popup-airline', airline);
+    appendPopupLine(popup, 'flight-popup-model', model);
+    appendPopupLine(popup, 'flight-popup-row', aircraftDetails);
+    appendPopupLine(popup, 'flight-popup-row', performance);
+    appendPopupLine(popup, 'flight-popup-route', route);
+
+    if (squawk) {
+        const squawkLine = document.createElement('div');
+        squawkLine.className = 'flight-popup-squawk';
+        squawkLine.textContent = `Squawk ${squawk}`;
+        if (squawk === '7700') {
+            squawkLine.classList.add('emergency');
+            popup.classList.add('flight-radar-popup-emergency');
+        }
+        popup.appendChild(squawkLine);
+    }
+
+    return popup;
+}
+
+function positionFlightPopup(popup: HTMLDivElement, x: number, y: number, radarWidth: number, radarHeight: number): void {
+    const edgePadding = 8;
+    const gap = 18;
+    const popupWidth = popup.offsetWidth || 190;
+    const popupHeight = popup.offsetHeight || 110;
+
+    let left = x <= radarWidth / 2 ? x + gap : x - popupWidth - gap;
+    let top = y - popupHeight / 2;
+
+    if (left < edgePadding) left = x + gap;
+    if (left + popupWidth > radarWidth - edgePadding) left = x - popupWidth - gap;
+
+    left = Math.max(edgePadding, Math.min(radarWidth - popupWidth - edgePadding, left));
+    top = Math.max(edgePadding, Math.min(radarHeight - popupHeight - edgePadding, top));
+
+    const popupIsLeftOfPlane = left + popupWidth <= x;
+    popup.classList.add(popupIsLeftOfPlane ? 'popup-left' : 'popup-right');
+    popup.style.left = `${left}px`;
+    popup.style.top = `${top}px`;
+}
+
 export function renderRadar(cardState: CardState): void {
     const { flights, radar, selectedFlights, dimensions, dom } = cardState;
 
@@ -208,7 +292,7 @@ export function renderRadar(cardState: CardState): void {
     if (!planesContainer) return;
     planesContainer.innerHTML = '';
 
-    const { range: radarRange, scaleFactor, centerX: radarCenterX, centerY: radarCenterY } = dimensions;
+    const { range: radarRange, scaleFactor, centerX: radarCenterX, centerY: radarCenterY, width: radarWidth, height: radarHeight } = dimensions;
     if (!radarRange || !scaleFactor || radarCenterX === undefined || radarCenterY === undefined) return;
 
     const clippingRange = radarRange * 1.15;
@@ -265,13 +349,27 @@ export function renderRadar(cardState: CardState): void {
                     plane.classList.add(`marker-size-${markerSize}`);
                 }
 
-                if (selectedFlights && selectedFlights.includes(flight.id)) {
+                const isSelected = !!(selectedFlights && selectedFlights.includes(flight.id));
+                if (isSelected) {
                     plane.classList.add('selected');
+                    label.classList.add('selected-flight-label');
                 }
 
                 plane.addEventListener('click', (e) => { e.stopPropagation(); handleFlightTap(cardState, flight); });
                 label.addEventListener('click', (e) => { e.stopPropagation(); handleFlightTap(cardState, flight); });
                 planesContainer.appendChild(plane);
+
+                if (isSelected) {
+                    const popup = createFlightPopup(cardState, flight);
+                    planesContainer.appendChild(popup);
+                    positionFlightPopup(
+                        popup,
+                        x,
+                        y,
+                        radarWidth || radarCenterX * 2,
+                        radarHeight || radarCenterY * 2
+                    );
+                }
             }
         });
 }
